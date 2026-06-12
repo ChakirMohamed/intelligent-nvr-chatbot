@@ -1,0 +1,37 @@
+# Core ML / Vision
+torch>=2.1.0
+torchvision>=0.16.0
+open-clip-torch>=2.24.0          # CLIP ViT-B/32 embeddings
+ultralytics>=8.2.0                # YOLOv8
+openvino>=2024.0.0                # Intel Iris Xe inference
+
+# Vector index + database
+faiss-cpu>=1.8.0
+numpy>=1.26.0
+Pillow>=10.3.0
+
+# Video / stream processing
+opencv-python>=4.9.0
+opencv-contrib-python>=4.9.0     # MOG2 background subtraction
+ffmpeg-python>=0.2.0
+
+# API layer
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+
+# LLM clients
+anthropic>=0.28.0
+openai>=1.30.0
+
+# Utilities
+python-dotenv>=1.0.1
+httpx>=0.27.0
+tqdm>=4.66.0
+
+# Testing
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+httpx>=0.27.0                     # for FastAPI TestClient
