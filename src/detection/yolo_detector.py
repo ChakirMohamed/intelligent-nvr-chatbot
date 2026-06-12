@@ -12,6 +12,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+FINETUNED_MODEL_PATH = "src/detection/models/yolov8n_visdrone_best.pt"
+
 TARGET_CLASSES = {"person", "car", "motorcycle", "bicycle", "truck"}
 
 _COLOR_MAP = {
@@ -61,11 +63,17 @@ class YOLODetector:
 
         if self.use_openvino:
             if not ov_dir.exists():
-                logger.info("OpenVINO model not found — exporting from yolov8n.pt …")
-                base = YOLO("yolov8n.pt")
+                logger.info("OpenVINO model not found — exporting from base weights …")
+                base_pt = Path(FINETUNED_MODEL_PATH)
+                if not base_pt.exists():
+                    logger.warning(
+                        "Fine-tuned model not found at '%s'. Falling back to yolov8n.pt.",
+                        FINETUNED_MODEL_PATH,
+                    )
+                    base_pt = Path("yolov8n.pt")
+                base = YOLO(str(base_pt))
                 base.export(format="openvino", half=False, dynamic=False)
-                # Ultralytics writes to ./yolov8n_openvino_model by default
-                exported = Path("yolov8n_openvino_model")
+                exported = Path(base_pt.stem + "_openvino_model")
                 if exported.exists():
                     import shutil
                     shutil.move(str(exported), str(ov_dir))
@@ -76,10 +84,19 @@ class YOLODetector:
                 logger.info("YOLOv8n OpenVINO model loaded (device=%s).", self._infer_device)
                 return
 
-        # plain PyTorch fallback
-        self._model = YOLO("yolov8n.pt")
+        # plain PyTorch path
+        finetuned = Path(FINETUNED_MODEL_PATH)
+        if finetuned.exists():
+            self._model = YOLO(str(finetuned))
+            logger.info("Fine-tuned YOLOv8n loaded from '%s' (CPU).", FINETUNED_MODEL_PATH)
+        else:
+            logger.warning(
+                "Fine-tuned model not found at '%s'. Falling back to yolov8n.pt.",
+                FINETUNED_MODEL_PATH,
+            )
+            self._model = YOLO("yolov8n.pt")
+            logger.info("YOLOv8n pretrained model loaded (CPU).")
         self._infer_device = "cpu"
-        logger.info("YOLOv8n PyTorch model loaded (CPU).")
 
     def _pick_ov_device(self) -> str:
         """Try requested OpenVINO device; fall back to CPU on error."""
