@@ -1,0 +1,312 @@
+# Intelligent NVR Chatbot
+
+**Système de vidéosurveillance intelligent avec recherche sémantique et interface conversationnelle**
+
+| | |
+|---|---|
+| **Institution** | Université Mohammed V – Faculté des Sciences, Rabat |
+| **Filière** | Master Informatique |
+| **Module** | Machine Learning & Deep Learning |
+| **Auteurs** | CHAKIR Mohamed · EL ASRY Soufiane |
+| **Deadline** | 15 juin 2026 |
+
+---
+
+## Overview
+
+This project implements an intelligent NVR (Network Video Recorder) system that allows a security agent to search through hours of video footage using **natural language queries in French or English**. The system answers questions like:
+
+> *"Quelqu'un a tagué mon mur le mois dernier, t'as quelque chose ?"*
+
+and returns a list of matching events with exact timestamps and downloadable `.mp4` clips.
+
+---
+
+## System Architecture
+
+```
+                         ┌─────────────────────────────────────────┐
+                         │           FastAPI REST Layer             │
+                         │  /chat  /search  /clip  /events  /summary│
+                         └───────────────┬─────────────────────────┘
+                                         │
+                    ┌────────────────────▼────────────────────┐
+                    │           ChatbotAgent (hybrid)          │
+                    │                                          │
+                    │  ┌──────────────┐   ┌─────────────────┐ │
+                    │  │ ML Classifier│   │   LLM (Claude)  │ │
+                    │  │ TF-IDF + NN  │──►│  param extract  │ │
+                    │  │ (local fast) │   │  NL response    │ │
+                    │  └──────────────┘   └─────────────────┘ │
+                    └────────────────────┬────────────────────┘
+                                         │ intent + params
+               ┌─────────────────────────▼──────────────────────────┐
+               │               RetrospectiveSearch                   │
+               │                                                      │
+               │   Text Query                                         │
+               │      │                                               │
+               │      ▼  CLIP ViT-B/32                               │
+               │   Text Embedding (512-d)                             │
+               │      │                                               │
+               │      ▼  FAISS IVFFlat ANN search                    │
+               │   Top-K candidates                                   │
+               │      │                                               │
+               │      ▼  SQLite metadata filter                       │
+               │   Events (camera, time, objects)                     │
+               │      │                                               │
+               │      ▼  FFmpeg                                       │
+               │   .mp4 clip (±30 s around match)                     │
+               └──────────────────────────────────────────────────────┘
+                          ▲                      ▲
+               ┌──────────┴──────────┐  ┌────────┴───────────┐
+               │    FrameIndexer     │  │    YOLODetector     │
+               │  CLIP embeddings    │  │  YOLOv8n + OpenVINO │
+               │  FAISS IVFFlat      │  │  Intel Iris Xe GPU  │
+               │  SQLite metadata    │  │  person/car/truck…  │
+               └──────────┬──────────┘  └────────┬───────────┘
+                          │                       │
+               ┌──────────▼───────────────────────▼────────────┐
+               │                RTSPReader                       │
+               │  RTSP stream / .mp4 file + MOG2 motion filter  │
+               └─────────────────────────────────────────────────┘
+```
+
+---
+
+## Hardware
+
+| Component | Spec |
+|---|---|
+| CPU | Intel Core i5-1145G7 |
+| RAM | 24 GB |
+| GPU | Intel Iris Xe (integrated) — used via OpenVINO |
+| OS | Windows 11 |
+
+> **No NVIDIA GPU required.** YOLO runs via Intel OpenVINO on Iris Xe (~8 fps).
+> CLIP embeddings run on CPU (float32).
+
+---
+
+## Project Structure
+
+```
+intelligent-nvr-chatbot/
+├── src/
+│   ├── ingestion/
+│   │   └── rtsp_reader.py          RTSP stream reading, MOG2 filtering, .mp4 segments
+│   ├── detection/
+│   │   └── yolo_detector.py        YOLOv8n + OpenVINO (Iris Xe / CPU fallback)
+│   ├── indexing/
+│   │   └── frame_indexer.py        CLIP embeddings → FAISS IVFFlat + SQLite
+│   ├── search/
+│   │   └── retrospective_search.py Text query → FAISS → filter → FFmpeg clips
+│   ├── agent/
+│   │   └── chatbot_agent.py        Hybrid ML + LLM intent classifier + router
+│   ├── api/
+│   │   └── api.py                  FastAPI REST service (7 endpoints)
+│   └── ml/
+│       ├── dataset/
+│       │   └── intent_dataset.csv  125 French sentences, 5 intent classes
+│       ├── models/                 Trained artifacts (generated by training)
+│       ├── results/                Plots + classification report (generated)
+│       ├── train_intent_classifier.py  TF-IDF + NN training script
+│       └── intent_classifier.py   Inference class
+├── data/
+│   ├── recordings/                 .mp4 segments by camera/date
+│   ├── faiss_index/                FAISS IVF index files
+│   ├── clips/                      Extracted event clips
+│   └── metadata.db                 SQLite frame metadata
+├── tests/
+│   ├── test_detection.py
+│   ├── test_search.py
+│   └── test_api.py
+├── demo.py                         End-to-end demo (no real camera needed)
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## Installation
+
+### 1. Clone & set up environment
+
+```bash
+git clone <repo-url>
+cd intelligent-nvr-chatbot
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env and fill in:
+#   ANTHROPIC_API_KEY=sk-ant-...   (or OPENAI_API_KEY)
+#   RTSP_URLS=rtsp://...           (your cameras, comma-separated)
+```
+
+### 3. Export YOLO to OpenVINO (one-time, Iris Xe acceleration)
+
+```bash
+python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='openvino')"
+```
+
+---
+
+## Quick Start
+
+### Run the demo (no camera needed)
+
+```bash
+# First, train the intent classifier
+python src/ml/train_intent_classifier.py
+
+# Then run the full end-to-end demo
+python demo.py
+```
+
+### Start the API server
+
+```bash
+python -m src.api.api
+# API docs available at http://localhost:8000/docs
+```
+
+### Run tests
+
+```bash
+pytest tests/ -v
+```
+
+---
+
+## API Reference
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/chat` | Multi-turn chatbot (French/English) |
+| `POST` | `/search` | Direct semantic video search |
+| `GET` | `/clip/{event_id}` | Download `.mp4` clip for an event |
+| `GET` | `/events` | List events with filters |
+| `GET` | `/summary` | Activity summary for a time window |
+| `GET` | `/cameras` | List cameras with frame counts |
+| `GET` | `/health` | System health + indexed frame count |
+
+### POST /chat
+
+```json
+// Request
+{ "message": "Quelqu'un a tagué mon mur le mois dernier ?", "session_id": "agent-1" }
+
+// Response
+{
+  "response": "J'ai trouvé 3 événements correspondants.",
+  "events": [
+    {
+      "id": 42,
+      "camera_id": "cam1",
+      "timestamp": "2026-04-15T02:17:33",
+      "detected_objects": ["person"],
+      "score": 0.8731,
+      "clip_path": "data/clips/clip_42_20260415_021733.mp4"
+    }
+  ],
+  "classification_info": {
+    "source": "ml+llm",
+    "ml": { "intent": "search", "confidence": 0.94 },
+    "llm_intent": "search"
+  }
+}
+```
+
+---
+
+## ML Intent Classifier
+
+The hybrid classification pipeline avoids LLM API calls for high-confidence simple queries:
+
+```
+User message
+     │
+     ▼
+TF-IDF + NN (local, ~1 ms)
+     │
+     ├─ confidence ≥ 0.85  AND  intent = greeting  ──► canned response (no LLM)
+     │
+     ├─ confidence ≥ 0.85  AND  intent ≠ greeting  ──► LLM with ML hint
+     │                                                  (faster param extraction)
+     └─ confidence < 0.85  ──────────────────────────► full LLM classification
+```
+
+### Model
+
+| Component | Value |
+|---|---|
+| Features | TF-IDF, max_features=500, ngram_range=(1,2) |
+| Architecture | Linear(500→128) → ReLU → Dropout(0.3) → Linear(128→64) → ReLU → Dropout(0.2) → Linear(64→5) |
+| Parameters | 72,709 |
+| Training | 100 epochs, Adam lr=1e-3, batch=16 |
+| Dataset | 125 French sentences, 5 classes, 25 each |
+| Test accuracy | **76 %** (25-sample stratified test set) |
+
+### Classes
+
+| Intent | Examples |
+|---|---|
+| `search` | "montre-moi les événements d'hier", "quelqu'un a tagué mon mur" |
+| `clip_request` | "envoie-moi le clip", "télécharge la vidéo du premier résultat" |
+| `summary` | "fais-moi un résumé", "combien de voitures ont été détectées" |
+| `greeting` | "bonjour", "salut", "bonsoir" |
+| `unknown` | "quelle est la résolution", "merci", "au revoir" |
+
+### Inference
+
+```python
+from src.ml.intent_classifier import IntentClassifierInference
+
+clf = IntentClassifierInference("src/ml/models")
+print(clf.predict("Quelqu'un a tagué mon mur le mois dernier"))
+# {'intent': 'search', 'confidence': 0.97, 'all_scores': {...}}
+
+print(clf.predict_batch(["bonjour", "envoie le clip", "résumé de la semaine"]))
+```
+
+---
+
+## Demo Scenario
+
+A security agent reports: *"Quelqu'un a tagué mon mur le mois dernier, t'as quelque chose ?"*
+
+**System pipeline:**
+
+1. ML classifier → `search` (confidence 0.94)
+2. LLM extracts: `query="graffiti tagging wall"`, `start_time=2026-05-01`, `end_time=2026-05-31`, `object_types=["person"]`
+3. CLIP encodes the English query to a 512-d vector
+4. FAISS IVF searches ~11M indexed frames in < 1 second
+5. SQLite filters by time range and detected objects
+6. FFmpeg extracts ±30 s clip around each match
+7. Agent receives 3 events with timestamps + `.mp4` download links
+
+---
+
+## Indexing Capacity
+
+| Parameter | Value |
+|---|---|
+| Embedding dimension | 512 (CLIP ViT-B/32) |
+| Index type | FAISS IVFFlat (nlist=100) |
+| Indexing rate | 0.5 fps = 1 frame every 2 s |
+| Max frames in 24 GB RAM | ~11 M frames |
+| Equivalent footage | ~256 hours per camera |
+
+---
+
+## Authors
+
+**CHAKIR Mohamed** - chakir.2001.mohamed@gmail.com  
+**EL ASRY Soufiane** - elasrysoufine@gmail.com
+
+*Master Informatique — Université Mohammed V, Faculté des Sciences, Rabat, 2026*

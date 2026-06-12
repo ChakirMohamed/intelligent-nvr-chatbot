@@ -1,6 +1,12 @@
 """
 Multi-turn chatbot agent for the NVR system.
-Classifies intent, routes to the right pipeline function, and answers in French/English.
+
+Classification strategy (hybrid):
+  1. Local ML classifier (TF-IDF + NN) runs first — fast, no API cost.
+  2. High-confidence greeting/unknown  → answer immediately, skip LLM call.
+  3. High-confidence search/summary/clip → hint the LLM so it focuses on
+     parameter extraction rather than re-classifying intent.
+  4. Low-confidence or classifier unavailable → full LLM path unchanged.
 """
 import json
 import logging
@@ -22,32 +28,32 @@ des événements vidéo, extraire des clips et obtenir des résumés d'activité
 Quand l'utilisateur pose une question, tu dois répondre UNIQUEMENT avec un objet JSON
 valide (sans balises Markdown) respectant ce schéma :
 
-{
+{{
   "intent": "<search|clip_request|summary|camera_info|greeting|unknown>",
   "query": "<description en anglais de ce qu'on cherche dans les vidéos>",
-  "params": {
+  "params": {{
     "camera_id":    null | "<id>",
     "start_time":   null | "<YYYY-MM-DDTHH:MM:SS>",
     "end_time":     null | "<YYYY-MM-DDTHH:MM:SS>",
     "object_types": [] | ["person","car","motorcycle","bicycle","truck"],
     "event_id":     null | <int>
-  },
+  }},
   "response": "<réponse en langage naturel à afficher>"
-}
+}}
 
 Règles d'interprétation temporelle (date actuelle = {today}):
-- "le mois dernier" → start_time = premier jour du mois précédent, end_time = dernier jour du mois précédent
-- "la semaine dernière" → les 7 derniers jours
-- "hier" → date d'hier 00:00:00 → 23:59:59
-- "ce matin" → aujourd'hui 06:00 → 12:00
-- "cette nuit" → hier 22:00 → aujourd'hui 06:00
+- "le mois dernier" -> start_time = premier jour du mois précédent, end_time = dernier jour
+- "la semaine dernière" -> les 7 derniers jours
+- "hier" -> date d'hier 00:00:00 à 23:59:59
+- "ce matin" -> aujourd'hui 06:00 à 12:00
+- "cette nuit" -> hier 22:00 à aujourd'hui 06:00
 
-Exemples d'intent :
-- "Quelqu'un a tagué mon mur le mois dernier" → intent=search, query="graffiti person tagging wall", object_types=["person"]
-- "Montre-moi le clip de l'événement 42" → intent=clip_request, event_id=42
-- "Résumé d'activité cette semaine caméra 2" → intent=summary, camera_id="cam2"
-- "Combien de voitures ont été détectées ?" → intent=summary, object_types=["car"]
-- "Bonjour" → intent=greeting
+{ml_hint}
+Exemples :
+- "Quelqu'un a tagué mon mur le mois dernier" -> intent=search, query="graffiti tagging wall person"
+- "Montre-moi le clip de l'événement 42" -> intent=clip_request, event_id=42
+- "Résumé d'activité cette semaine caméra 2" -> intent=summary, camera_id="cam2"
+- "Bonjour" -> intent=greeting
 """
 
 
@@ -55,7 +61,7 @@ Exemples d'intent :
 
 @dataclass
 class Message:
-    role: str    # "user" | "assistant"
+    role: str      # "user" | "assistant"
     content: str
 
 
@@ -76,11 +82,14 @@ class ChatbotAgent:
         llm_model: Optional[str] = None,
         api_key: Optional[str] = None,
         max_history: int = 20,
+        ml_model_dir: str = "src/ml/models",
+        ml_confidence_threshold: float = 0.85,
     ):
         self.search_engine = search_engine
         self.llm_provider = llm_provider
         self.api_key = api_key
         self.max_history = max_history
+        self.ml_threshold = ml_confidence_threshold
         self._client = None
 
         if llm_provider == "anthropic":
@@ -92,7 +101,10 @@ class ChatbotAgent:
         else:
             raise ValueError(f"Unknown LLM provider: {llm_provider!r}")
 
-        logger.info("ChatbotAgent ready: %s / %s", llm_provider, self.llm_model)
+        self._ml_clf = self._load_ml_classifier(ml_model_dir)
+        logger.info("ChatbotAgent ready: %s / %s  (ML classifier: %s)",
+                    llm_provider, self.llm_model,
+                    "loaded" if self._ml_clf else "unavailable")
 
     # ── LLM clients ──────────────────────────────────────────────────────────
 
@@ -104,25 +116,54 @@ class ChatbotAgent:
         import openai
         self._client = openai.OpenAI(api_key=self.api_key)
 
-    def _system_with_date(self) -> str:
-        return _SYSTEM_PROMPT.format(today=datetime.now().strftime("%Y-%m-%d"))
+    # ── ML classifier ─────────────────────────────────────────────────────────
 
-    def _call_llm(self, messages: List[Message]) -> str:
+    def _load_ml_classifier(self, model_dir: str):
+        try:
+            from src.ml.intent_classifier import IntentClassifierInference
+            return IntentClassifierInference(model_dir)
+        except Exception as exc:
+            logger.warning("ML classifier not loaded (%s) — LLM-only mode.", exc)
+            return None
+
+    def _ml_predict(self, text: str) -> Optional[Dict[str, Any]]:
+        if self._ml_clf is None:
+            return None
+        try:
+            return self._ml_clf.predict(text)
+        except Exception as exc:
+            logger.warning("ML predict failed: %s", exc)
+            return None
+
+    # ── LLM call ─────────────────────────────────────────────────────────────
+
+    def _system_prompt(self, ml_hint: str = "") -> str:
+        hint_line = (
+            f"NOTE: le classificateur local prédit intent='{ml_hint}' avec haute confiance. "
+            f"Utilise cet intent sauf si le texte contredit clairement cette prédiction.\n"
+            if ml_hint else ""
+        )
+        return _SYSTEM_PROMPT.format(
+            today=datetime.now().strftime("%Y-%m-%d"),
+            ml_hint=hint_line,
+        )
+
+    def _call_llm(self, messages: List[Message], ml_hint: str = "") -> str:
         msg_list = [{"role": m.role, "content": m.content} for m in messages]
+        system = self._system_prompt(ml_hint)
 
         if self.llm_provider == "anthropic":
             resp = self._client.messages.create(
                 model=self.llm_model,
                 max_tokens=1024,
-                system=self._system_with_date(),
+                system=system,
                 messages=msg_list,
             )
             return resp.content[0].text
 
-        # OpenAI
         resp = self._client.chat.completions.create(
             model=self.llm_model,
-            messages=[{"role": "system", "content": self._system_with_date()}] + msg_list,
+            messages=[{"role": "system", "content": system}] + msg_list,
             max_tokens=1024,
         )
         return resp.choices[0].message.content
@@ -131,12 +172,10 @@ class ChatbotAgent:
 
     @staticmethod
     def _parse(text: str) -> Dict[str, Any]:
-        # Strip optional markdown code fences
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            # Try to extract first {...} block
             m = re.search(r"\{.*\}", cleaned, re.DOTALL)
             if m:
                 try:
@@ -149,12 +188,12 @@ class ChatbotAgent:
 
     def _parse_times(self, params: dict):
         start = end = None
-        for key, attr in [("start_time", "start"), ("end_time", "end")]:
+        for key, slot in [("start_time", "start"), ("end_time", "end")]:
             val = params.get(key)
             if val:
                 try:
                     dt = datetime.fromisoformat(val)
-                    if attr == "start":
+                    if slot == "start":
                         start = dt
                     else:
                         end = dt
@@ -208,27 +247,55 @@ class ChatbotAgent:
             "clip_path": None,
         }
 
-    # ── public API ────────────────────────────────────────────────────────────
+    # ── public chat API ───────────────────────────────────────────────────────
 
     def chat(self, user_message: str, ctx: AgentContext) -> dict:
+        # ── Step 1: local ML pre-classification ──────────────────────────────
+        ml_pred = self._ml_predict(user_message)
+        confident = ml_pred is not None and ml_pred["confidence"] >= self.ml_threshold
+
+        classification_info = {
+            "ml":     ml_pred,
+            "source": "llm",        # updated below
+        }
+
+        # ── Step 2: shortcut for simple intents (no LLM call needed) ─────────
+        if confident and ml_pred["intent"] == "greeting":
+            classification_info["source"] = "ml"
+            classification_info["llm_intent"] = None
+            return {
+                "response":            "Bonjour ! Comment puis-je vous aider avec le système de surveillance ?",
+                "classification_info": classification_info,
+            }
+
+        # ── Step 3: call LLM (with optional ML hint for complex intents) ─────
         ctx.conversation.append(Message(role="user", content=user_message))
         history = ctx.conversation[-self.max_history:]
 
-        raw = self._call_llm(history)
+        ml_hint = ml_pred["intent"] if confident else ""
+        if ml_hint:
+            classification_info["source"] = "ml+llm"
+
+        raw = self._call_llm(history, ml_hint=ml_hint)
         ctx.conversation.append(Message(role="assistant", content=raw))
 
         parsed = self._parse(raw)
         intent = parsed.get("intent", "unknown")
+        classification_info["llm_intent"] = intent
 
+        # ── Step 4: route to handler ──────────────────────────────────────────
         if intent == "search":
-            return self._handle_search(parsed, ctx)
-        if intent == "summary":
-            return self._handle_summary(parsed, ctx)
-        if intent == "clip_request":
-            return self._handle_clip_request(parsed, ctx)
-        if intent == "greeting":
-            return {"response": parsed.get("response", "Bonjour ! Comment puis-je vous aider ?")}
-        if intent == "camera_info":
-            return {"response": parsed.get("response", "Interrogez l'endpoint /cameras pour la liste des caméras.")}
+            result = self._handle_search(parsed, ctx)
+        elif intent == "summary":
+            result = self._handle_summary(parsed, ctx)
+        elif intent == "clip_request":
+            result = self._handle_clip_request(parsed, ctx)
+        elif intent == "greeting":
+            result = {"response": parsed.get("response", "Bonjour ! Comment puis-je vous aider ?")}
+        elif intent == "camera_info":
+            result = {"response": parsed.get("response", "Interrogez /cameras pour la liste des caméras.")}
+        else:
+            result = {"response": parsed.get("response", "Je n'ai pas compris. Pouvez-vous reformuler ?")}
 
-        return {"response": parsed.get("response", "Je n'ai pas compris. Pouvez-vous reformuler ?")}
+        result["classification_info"] = classification_info
+        return result
