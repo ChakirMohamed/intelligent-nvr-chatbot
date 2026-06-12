@@ -1,0 +1,21 @@
+Intent Classification Report
+============================================================
+Dataset     : 125 samples  |  5 classes
+Train / Test: 100 / 25
+TF-IDF      : max_features=500, ngram_range=(1, 2)
+Architecture: 500->128->64->5
+Epochs      : 100  |  Batch: 16  |  LR: 0.001
+Final test accuracy: 76.00 %
+============================================================
+
+              precision    recall  f1-score   support
+
+clip_request      1.000     0.600     0.750         5
+    greeting      0.667     0.800     0.727         5
+      search      1.000     0.800     0.889         5
+     summary      0.625     1.000     0.769         5
+     unknown      0.750     0.600     0.667         5
+
+    accuracy                          0.760        25
+   macro avg      0.808     0.760     0.760        25
+weighted avg      0.808     0.760     0.760        25

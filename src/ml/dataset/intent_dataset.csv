@@ -24,6 +24,41 @@ montre les détections de la caméra principale,search
 cherche un camion devant le bâtiment,search
 quelqu'un a traversé la cour hier matin,search
 montre-moi les images du couloir d'entrée,search
+est-ce que quelqu'un est passé près du portail hier ?,search
+trouve les intrusions de la semaine,search
+y'a eu quoi cette nuit ?,search
+c'est qui le gars près de la porte ?,search
+femme avec un sac rouge détectée où ?,search
+t'as vu passer un camion blanc ?,search
+personne en capuche noire hier soir,search
+deux personnes qui courent dans le couloir,search
+montre-moi ce qui s'est passé entre 22h et minuit,search
+qu'est-ce qui s'est passé le 5 juin ?,search
+cherche quelqu'un la semaine dernière,search
+ce matin vers 8h y'avait qui ?,search
+montre les détections d'hier soir,search
+je veux voir les intrusions du parking,search
+quelqu'un a forcé l'entrée cette nuit ?,search
+qui est passé par la porte arrière ?,search
+y'a eu du monde dans la zone de stockage ?,search
+montre-moi les images de la caméra 3 hier,search
+cherche une personne avec un casque rouge,search
+qu'est-ce qui s'est passé au parking ce soir ?,search
+est-ce qu'il y a eu du mouvement la nuit de jeudi ?,search
+retrouve moi l'événement avec le vélo,search
+cherche un individu suspect près du bâtiment B,search
+qui a traversé le couloir après 23h ?,search
+montre les détections entre le 1er et le 5 juin,search
+y'a quelqu'un entré sans badge ?,search
+qqun a touché à la porte du bureau ?,search
+t'as vu une moto dans le parking cette semaine ?,search
+cherche des événements suspects lundi matin,search
+montre-moi les alertes de la zone d'entrée,search
+qui était là vers 3h du matin ?,search
+est-ce qu'une voiture est restée garée toute la nuit ?,search
+montre les allées et venues de la porte principale,search
+y'avait du monde dans le hall hier ?,search
+cherche une personne avec un sac à dos,search
 envoie-moi la vidéo,clip_request
 je veux télécharger le clip,clip_request
 télécharge la vidéo du premier résultat,clip_request
@@ -49,6 +84,41 @@ envoie la vidéo du parking,clip_request
 donne-moi accès à l'enregistrement,clip_request
 je veux le clip de la détection,clip_request
 télécharge la vidéo de cette nuit,clip_request
+passe-moi le clip,clip_request
+je peux avoir la vidéo ?,clip_request
+exporte l'extrait,clip_request
+balance la séquence,clip_request
+fais-moi un export mp4,clip_request
+récupère-moi ça en vidéo,clip_request
+montre-moi le clip du premier événement,clip_request
+je veux la vidéo de l'événement 2,clip_request
+export le clip du 15 mai,clip_request
+récupère la vidéo de la caméra du parking,clip_request
+celle de 2h du matin je la veux,clip_request
+t'as la séquence complète ?,clip_request
+envoie-moi l'extrait stp,clip_request
+je voudrais le fichier de l'incident,clip_request
+peux-tu m'exporter ça en mp4 ?,clip_request
+le clip du résultat 3 stp,clip_request
+je veux dl ça,clip_request
+t'as la vidéo de cette détection ?,clip_request
+balance-moi l'enregistrement,clip_request
+j'ai besoin du clip de la nuit dernière,clip_request
+tu peux me sortir ça en vidéo ?,clip_request
+extrait de la caméra entrée principale,clip_request
+je veux récupérer le clip du parking,clip_request
+envoie le fichier de l'alerte,clip_request
+exporte la vidéo de cet événement en mp4,clip_request
+télécharge-moi la séquence de la caméra 4,clip_request
+fais-moi un export de cette nuit,clip_request
+je veux voir le clip complet de l'incident,clip_request
+donne-moi accès à la vidéo du portail,clip_request
+passe-moi l'enregistrement de 22h,clip_request
+le fichier vidéo du résultat 1 stp,clip_request
+j'aimerais avoir la vidéo,clip_request
+tu peux exporter l'événement numéro 4 ?,clip_request
+envoie la vidéo de la détection du couloir,clip_request
+je veux le clip de la caméra 2,clip_request
 fais-moi un résumé de la journée,summary
 génère un rapport d'activité,summary
 donne-moi les statistiques de détection,summary
@@ -74,6 +144,41 @@ fais un résumé des activités de la journée,summary
 rapport d'activité de la caméra principale,summary
 donne-moi les chiffres de détection,summary
 résumé des mouvements dans le parking,summary
+bilan de la nuit,summary
+rapport du week-end,summary
+résumé de mai,summary
+statistiques des dernières 24h,summary
+vue d'ensemble de la semaine,summary
+stats par caméra,summary
+bilan des détections de véhicules,summary
+résumé de la zone entrée,summary
+fais-moi un rapport de la nuit dernière,summary
+donne-moi les stats du mois,summary
+rapport des alertes de la semaine,summary
+synthèse des activités de la journée,summary
+résumé des incidents du mois dernier,summary
+statistiques par zone,summary
+bilan global du système cette semaine,summary
+donne-moi un résumé rapide,summary
+rapport mensuel d'activité,summary
+stats des personnes détectées hier,summary
+résumé de l'activité nocturne de cette semaine,summary
+tu peux me faire un bilan ?,summary
+génère-moi les stats d'activité,summary
+combien d'alertes ce mois-ci ?,summary
+résumé des mouvements de la nuit dernière,summary
+rapport sur les détections du parking,summary
+donne-moi les chiffres de la semaine,summary
+vue d'ensemble par caméra,summary
+statistiques des entrées et sorties,summary
+bilan hebdomadaire stp,summary
+résumé des détections anormales,summary
+rapport de la zone de stockage,summary
+donne-moi un aperçu rapide des événements,summary
+combien de personnes ont traversé l'entrée ?,summary
+statistiques globales du mois,summary
+synthèse des alertes nocturnes,summary
+rapport complet de la semaine dernière,summary
 bonjour,greeting
 salut,greeting
 bonsoir,greeting
@@ -99,6 +204,41 @@ salut système,greeting
 bon matin,greeting
 hey là,greeting
 bonsoir rebonjour,greeting
+yo,greeting
+cc,greeting
+re,greeting
+wesh,greeting
+salut t'es là ?,greeting
+bonjour le système,greeting
+re c'est encore moi,greeting
+salut je reviens,greeting
+bonsoir c'est la relève,greeting
+hey t'es dispo ?,greeting
+yo le système,greeting
+coucou je suis là,greeting
+hello le bot,greeting
+bonjour je prends la relève,greeting
+salut j'arrive,greeting
+re bonjour,greeting
+wesh c'est moi,greeting
+hey là t'es là ?,greeting
+bonjour bonsoir,greeting
+salut ça roule ?,greeting
+hi là,greeting
+bonjour je suis le nouveau agent,greeting
+cc c'est moi,greeting
+salut système me revoilà,greeting
+bon soir,greeting
+bonsoir je débute mon tour,greeting
+hey bonjour,greeting
+coucou me voilà,greeting
+salut le chatbot,greeting
+hello t'es là ?,greeting
+bonjour je prends le relais,greeting
+re salut,greeting
+wesh le bot t'es là ?,greeting
+hey je suis de retour,greeting
+coucou de retour,greeting
 quelle est la résolution des caméras,unknown
 comment fonctionne le système,unknown
 merci,unknown
@@ -124,3 +264,38 @@ appelle le technicien,unknown
 redémarre le système,unknown
 mets à jour le logiciel,unknown
 configure les alertes,unknown
+combien de caméras ?,unknown
+ça enregistre en quelle qualité ?,unknown
+merci beaucoup,unknown
+ok bye,unknown
+à plus,unknown
+nickel merci,unknown
+quelle heure est-il ?,unknown
+raconte une blague,unknown
+tu vas bien ?,unknown
+c'est quoi le principe ?,unknown
+besoin d'aide stp,unknown
+je fais quoi ?,unknown
+t'es capable de quoi ?,unknown
+c'est quoi tes fonctions ?,unknown
+tu peux faire ça ?,unknown
+ça bug,unknown
+problème technique,unknown
+j'y comprends rien,unknown
+répète stp,unknown
+c'est quoi ton nom ?,unknown
+qui t'a créé ?,unknown
+t'es une IA ?,unknown
+combien de stockage il reste ?,unknown
+le système est lent,unknown
+ça rame,unknown
+t'as bugué,unknown
+je comprends rien à ce truc,unknown
+c'est nul,unknown
+parfait,unknown
+super,unknown
+bien joué,unknown
+ça marchera jamais,unknown
+y'a un souci avec le système,unknown
+appelez le support,unknown
+est-ce que tu peux apprendre ?,unknown

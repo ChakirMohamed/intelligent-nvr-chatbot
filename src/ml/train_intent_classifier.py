@@ -108,11 +108,27 @@ def _predict_all(model: IntentNet, loader: DataLoader) -> np.ndarray:
 
 # ── main training routine ─────────────────────────────────────────────────────
 
+PREV_ACCURACY = 76.0  # Run 1 — 125 samples
+
+
+def _archive_run1_results() -> None:
+    """Rename existing result files with _run1_125samples suffix before overwriting."""
+    import shutil
+    for fname in ("training_curves.png", "confusion_matrix.png", "classification_report.txt"):
+        src = os.path.join(RESULTS_DIR, fname)
+        if os.path.exists(src):
+            stem, ext = os.path.splitext(fname)
+            dst = os.path.join(RESULTS_DIR, f"{stem}_run1_125samples{ext}")
+            shutil.copy2(src, dst)
+            print(f"       [archived] {fname} -> {os.path.basename(dst)}")
+
+
 def main() -> None:
     # 1 ── Load dataset ────────────────────────────────────────────────────────
     print("=" * 60)
     print("  Intent Classifier - TF-IDF + Feedforward NN")
     print("=" * 60)
+    _archive_run1_results()
     df = pd.read_csv(DATA_PATH)
     print(f"\n[1/6] Dataset loaded: {len(df)} samples")
     print(df["intent"].value_counts().rename("count").to_string())
@@ -281,6 +297,10 @@ def main() -> None:
         status = "[OK]" if os.path.exists(path) else "[MISSING]"
         print(f"    {status}  {os.path.relpath(path, _HERE)}  ({size:,} bytes)")
     print()
+
+    print("=" * 60)
+    print(f"  Run 1 (125 samples): {PREV_ACCURACY:.1f}% | Run 2 (300 samples): {te_accs[-1]*100:.1f}%")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
