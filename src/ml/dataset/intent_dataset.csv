@@ -1,0 +1,126 @@
+text,intent
+montre-moi les événements d'hier,search
+quelqu'un a tagué mon mur le mois dernier,search
+cherche une personne avec une veste rouge,search
+y a-t-il eu une intrusion la semaine dernière,search
+montre les véhicules détectés ce week-end,search
+je veux voir ce qui s'est passé hier soir,search
+montre-moi les personnes détectées ce matin,search
+recherche les voitures garées devant l'entrée,search
+qu'est-ce qui s'est passé la nuit dernière,search
+montre les activités de la caméra 2,search
+quelqu'un est entré dans le parking cette nuit,search
+cherche des motos détectées cette semaine,search
+montre-moi les événements suspects,search
+y a-t-il eu du mouvement dans le couloir,search
+recherche une personne en vêtements noirs,search
+montre les enregistrements du 15 mai,search
+quelqu'un a-t-il tenté d'entrer de force,search
+je cherche une voiture rouge garée ici,search
+montre-moi ce qui s'est passé entre 14h et 16h,search
+cherche des événements avec une bicyclette,search
+y avait-il des personnes la nuit de vendredi,search
+montre les détections de la caméra principale,search
+cherche un camion devant le bâtiment,search
+quelqu'un a traversé la cour hier matin,search
+montre-moi les images du couloir d'entrée,search
+envoie-moi la vidéo,clip_request
+je veux télécharger le clip,clip_request
+télécharge la vidéo du premier résultat,clip_request
+envoie le mp4 du deuxième résultat,clip_request
+je veux récupérer la vidéo,clip_request
+donne-moi le clip vidéo,clip_request
+je veux le fichier vidéo,clip_request
+télécharge le clip de cet événement,clip_request
+envoie-moi l'enregistrement,clip_request
+je veux voir la vidéo complète,clip_request
+peux-tu m'envoyer le clip,clip_request
+télécharge la séquence vidéo,clip_request
+donne-moi l'extrait vidéo,clip_request
+envoie le clip du résultat numéro 1,clip_request
+je veux récupérer l'enregistrement vidéo,clip_request
+télécharge la vidéo de l'événement 3,clip_request
+envoie-moi le fichier mp4,clip_request
+je veux exporter la vidéo,clip_request
+donne-moi le clip de cet incident,clip_request
+télécharge l'extrait de la caméra 1,clip_request
+je veux télécharger l'événement numéro 2,clip_request
+envoie la vidéo du parking,clip_request
+donne-moi accès à l'enregistrement,clip_request
+je veux le clip de la détection,clip_request
+télécharge la vidéo de cette nuit,clip_request
+fais-moi un résumé de la journée,summary
+génère un rapport d'activité,summary
+donne-moi les statistiques de détection,summary
+résumé des activités nocturnes,summary
+rapport d'activité pour la dernière semaine,summary
+combien de personnes ont été détectées aujourd'hui,summary
+donne-moi un bilan de la semaine,summary
+résumé des événements du mois,summary
+quelles sont les heures de pointe d'activité,summary
+génère les statistiques d'intrusion,summary
+fais un rapport pour la direction,summary
+combien de voitures ont été détectées,summary
+donne-moi le résumé de la nuit,summary
+statistiques de la caméra 2,summary
+bilan des détections de la semaine dernière,summary
+rapport sur les activités suspectes,summary
+donne-moi un aperçu de l'activité,summary
+résumé des alertes de ce mois,summary
+génère un rapport hebdomadaire,summary
+combien d'incidents ont été enregistrés,summary
+statistiques globales du système,summary
+fais un résumé des activités de la journée,summary
+rapport d'activité de la caméra principale,summary
+donne-moi les chiffres de détection,summary
+résumé des mouvements dans le parking,summary
+bonjour,greeting
+salut,greeting
+bonsoir,greeting
+hello,greeting
+coucou,greeting
+bonjour comment vas-tu,greeting
+salut j'ai besoin d'aide,greeting
+bonsoir je suis l'agent de sécurité,greeting
+hello peux-tu m'aider,greeting
+coucou c'est moi,greeting
+bonjour assistant,greeting
+salut le système,greeting
+bonne journée,greeting
+hey,greeting
+hi,greeting
+bonjour je suis de retour,greeting
+salut comment ça va,greeting
+bonsoir je prends mon poste,greeting
+hello assistant,greeting
+coucou tu es là,greeting
+bonjour je commence mon service,greeting
+salut système,greeting
+bon matin,greeting
+hey là,greeting
+bonsoir rebonjour,greeting
+quelle est la résolution des caméras,unknown
+comment fonctionne le système,unknown
+merci,unknown
+au revoir,unknown
+aide-moi,unknown
+c'est quoi ce système,unknown
+combien coûte l'abonnement,unknown
+qui a installé ce système,unknown
+il fait froid aujourd'hui,unknown
+je ne comprends pas,unknown
+arrête,unknown
+ok,unknown
+très bien,unknown
+je ne sais pas,unknown
+c'est quoi ça,unknown
+quelle est la marque des caméras,unknown
+depuis quand ce système fonctionne-t-il,unknown
+comment changer le mot de passe,unknown
+peut-on ajouter une nouvelle caméra,unknown
+quels sont les formats vidéo supportés,unknown
+mon abonnement expire bientôt,unknown
+appelle le technicien,unknown
+redémarre le système,unknown
+mets à jour le logiciel,unknown
+configure les alertes,unknown
