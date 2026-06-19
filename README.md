@@ -272,5 +272,3 @@ intelligent-nvr-chatbot/
 
 **CHAKIR Mohamed** · **EL ASRY Soufiane**
 *Master Informatique — Université Mohammed V, Faculté des Sciences, Rabat — 2025/2026*
-
-**Soumission :** [forms.gle/pDmMm6HW2BRRN9ZL6](https://forms.gle/pDmMm6HW2BRRN9ZL6) · Deadline : 21 juin 2026
