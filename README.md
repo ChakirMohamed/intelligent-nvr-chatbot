@@ -22,7 +22,7 @@
 
 <div align="center">
 
-| | |
+
 |---|---|
 | **Institution** | Université Mohammed V – Faculté des Sciences, Rabat |
 | **Filière** | Master Informatique |
