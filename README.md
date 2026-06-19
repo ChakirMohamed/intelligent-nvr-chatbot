@@ -1,11 +1,8 @@
-<!-- ============ BANNIÈRE ============ -->
-<!-- Remplace ce bloc par ta bannière générée (voir prompts ChatGPT plus bas)
-     Place l'image dans : docs/banner.png  puis garde la ligne ci-dessous -->
 <p align="center">
   <img src="docs/banner.png" alt="Intelligent NVR — Recherche vidéo sémantique par IA" width="100%">
 </p>
 
-<h1 align="center">🎥 Intelligent NVR — Recherche Vidéo Sémantique par IA</h1>
+<!--h1 align="center">🎥 Intelligent NVR — Recherche Vidéo Sémantique par IA</h1-->
 
 <p align="center">
   <em>Interrogez vos vidéos de surveillance en français naturel — sans date, sans caméra, en moins de 300 ms.</em>
