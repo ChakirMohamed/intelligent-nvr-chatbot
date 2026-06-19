@@ -1,19 +1,43 @@
-# 🎥 Intelligent NVR — Recherche Vidéo Sémantique par IA
+<!-- ============ BANNIÈRE ============ -->
+<!-- Remplace ce bloc par ta bannière générée (voir prompts ChatGPT plus bas)
+     Place l'image dans : docs/banner.png  puis garde la ligne ci-dessous -->
+<p align="center">
+  <img src="docs/banner.png" alt="Intelligent NVR — Recherche vidéo sémantique par IA" width="100%">
+</p>
 
-> Interrogez vos vidéos de surveillance en français naturel — sans date, sans caméra, en moins de 300 ms.
+<h1 align="center">🎥 Intelligent NVR — Recherche Vidéo Sémantique par IA</h1>
+
+<p align="center">
+  <em>Interrogez vos vidéos de surveillance en français naturel — sans date, sans caméra, en moins de 300 ms.</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white">
+  <img src="https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white">
+  <img src="https://img.shields.io/badge/YOLOv8-fine--tuned-00A896">
+  <img src="https://img.shields.io/badge/CLIP-ViT--B%2F32-028090">
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
+  <img src="https://img.shields.io/badge/React-TS-61DAFB?logo=react&logoColor=white">
+  <img src="https://img.shields.io/badge/license-academic-lightgrey">
+</p>
+
+---
 
 <div align="center">
 
 | | |
 |---|---|
 | **Institution** | Université Mohammed V – Faculté des Sciences, Rabat |
+| **Filière** | Master Informatique |
 | **Module** | Machine Learning & Deep Learning |
 | **Encadrant** | Pr. Abdelhak Mahmoudi |
 | **Co-encadrants** | Saad Frihi & Yasine Lehmiani |
 | **Auteurs** | CHAKIR Mohamed · EL ASRY Soufiane |
-| **Deadline** | 21 juin 2026 |
+| **Année** | 2025 – 2026 |
 
 </div>
+
+> 🔗 **Frontend (React + TypeScript) :** https://github.com/ChakirMohamed/front-end-nvr-chatbot
 
 ---
 
@@ -21,7 +45,7 @@
 
 Les NVR classiques imposent une revue manuelle pour retrouver un événement. Notre système permet de simplement demander :
 
-> *"Quelqu'un a tagué mon mur le mois dernier, t'as quelque chose ?"*
+> *« Quelqu'un a tagué mon mur le mois dernier, t'as quelque chose ? »*
 
 et reçoit en réponse les timestamps exacts + clips `.mp4` téléchargeables, en **moins de 300 ms**.
 
@@ -49,13 +73,18 @@ Comprend ce que l'utilisateur veut faire à partir d'une phrase libre en frança
 | Run 1 | 125 phrases | 76,0 % |
 | Run 2 | 300 phrases | **91,7 %** |
 
+<p align="center">
+  <img src="src/ml/results/training_curves.png" alt="Courbes d'entraînement du classifieur" width="48%">
+  <img src="src/ml/results/confusion_matrix.png" alt="Matrice de confusion" width="38%">
+</p>
+
 | Classe | Exemples |
 |---|---|
-| `search` | *"y'a eu quoi cette nuit ?"*, *"quelqu'un a tagué mon mur"* |
-| `clip_request` | *"envoie-moi le clip"*, *"passe-moi la vidéo stp"* |
-| `summary` | *"fais un résumé de la semaine"*, *"bilan des activités"* |
-| `greeting` | *"bonjour"*, *"salut"*, *"wesh"* |
-| `unknown` | *"quelle est la résolution ?"*, *"merci"* |
+| `search` | *« y'a eu quoi cette nuit ? »*, *« quelqu'un a tagué mon mur »* |
+| `clip_request` | *« envoie-moi le clip »*, *« passe-moi la vidéo stp »* |
+| `summary` | *« fais un résumé de la semaine »*, *« bilan des activités »* |
+| `greeting` | *« bonjour »*, *« salut »*, *« wesh »* |
+| `unknown` | *« quelle est la résolution ? »*, *« merci »* |
 
 ---
 
@@ -72,9 +101,21 @@ YOLOv8 de base est entraîné sur COCO (photos au sol). Sur des images de survei
 
 Entraînement : 15 epochs, GPU Tesla T4 (Google Colab), **37 minutes**.
 
+<p align="center">
+  <img src="src/ml/results/yolo_training_curves.png" alt="Courbes d'entraînement YOLOv8" width="60%">
+</p>
+
+<p align="center">
+  <img src="src/ml/results/val_batch0_pred.jpg" alt="Détections du modèle fine-tuné sur VisDrone" width="60%">
+  <br><em>Exemple de détections du modèle fine-tuné (validation VisDrone)</em>
+</p>
+
 ---
 
 ## 🏗️ Architecture
+
+<!-- Optionnel : remplace par ton schéma généré (docs/architecture.png) -->
+<!-- <p align="center"><img src="docs/architecture.png" width="90%"></p> -->
 
 ```
 Caméras IP (RTSP)
@@ -91,6 +132,29 @@ Chatbot — Intent Classifier → route → réponse française
     ↓
 API REST — FastAPI (/chat /search /clip /events /summary /health)
 ```
+
+---
+
+## 🖥️ Interface (Frontend React)
+
+> Dépôt frontend : https://github.com/ChakirMohamed/front-end-nvr-chatbot
+
+<!-- ============ CAPTURES FRONTEND ============ -->
+<!-- Ajoute tes captures dans docs/ puis garde les lignes ci-dessous -->
+<p align="center">
+  <img src="docs/screenshot_dashboard.png" alt="Tableau de bord" width="80%">
+  <br><em>Tableau de bord — métriques ML en temps réel</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshot_assistant.png" alt="Assistant IA" width="80%">
+  <br><em>Assistant IA — visualisation des scores du classifieur en direct</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshot_search.png" alt="Recherche sémantique" width="80%">
+  <br><em>Recherche sémantique en langage naturel</em>
+</p>
 
 ---
 
@@ -131,6 +195,16 @@ Pipeline: YOLO ✓  CLIP ✓  FAISS ✓  SQLite ✓  Intent Classifier ✓
 ```bash
 uvicorn src.api.api:app --port 8000
 # Swagger UI → http://localhost:8000/docs
+```
+
+### Frontend
+
+```bash
+git clone https://github.com/ChakirMohamed/front-end-nvr-chatbot.git
+cd front-end-nvr-chatbot
+npm install
+npm run dev
+# → http://localhost:5173
 ```
 
 ### Ré-entraîner le classifieur
@@ -189,6 +263,7 @@ intelligent-nvr-chatbot/
 │       ├── models/                           ← .pt, .pkl sauvegardés
 │       ├── results/                          ← courbes, matrices
 │       └── YOLO_FINETUNING.md
+├── docs/                                     ← bannière + captures README
 ├── demo.py
 ├── requirements.txt
 └── .env.example
@@ -200,3 +275,5 @@ intelligent-nvr-chatbot/
 
 **CHAKIR Mohamed** · **EL ASRY Soufiane**
 *Master Informatique — Université Mohammed V, Faculté des Sciences, Rabat — 2025/2026*
+
+**Soumission :** [forms.gle/pDmMm6HW2BRRN9ZL6](https://forms.gle/pDmMm6HW2BRRN9ZL6) · Deadline : 21 juin 2026
