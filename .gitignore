@@ -219,3 +219,10 @@ __marimo__/
 
 #claude
 .claude
+
+# NVR recordings (large video clips — not for version control)
+data/recordings/
+
+# Runtime-generated data (rebuilt locally, keep out of git)
+data/faiss_index/
+data/metadata.db
