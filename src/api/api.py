@@ -29,7 +29,20 @@ app = FastAPI(
     description="AI-powered NVR with semantic video search and chatbot interface",
     version="1.0.0",
 )
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# CORS — allow the Vite dev frontend (http://localhost:5173) by default.
+# Override with a comma-separated CORS_ORIGINS env var if needed.
+_cors_origins = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    if o.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ── singletons ────────────────────────────────────────────────────────────────
 _search: Any = None
