@@ -148,10 +148,6 @@ API REST — FastAPI (/chat /search /clip /events /summary /health)
   <br><em>Assistant IA — visualisation des scores du classifieur en direct</em>
 </p>
 
-<p align="center">
-  <img src="docs/screenshot_search.png" alt="Recherche sémantique" width="80%">
-  <br><em>Recherche sémantique en langage naturel</em>
-</p>
 
 ---
 
