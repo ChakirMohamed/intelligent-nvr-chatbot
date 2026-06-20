@@ -5,7 +5,6 @@ Text query → CLIP embedding → FAISS ANN → SQLite metadata filter → FFmpe
 import logging
 import pickle
 import sqlite3
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -146,36 +145,68 @@ class RetrospectiveSearch:
 
     # ── clip extraction ───────────────────────────────────────────────────────
 
+    def _video_anchor_ts(self, video_path: str) -> Optional[datetime]:
+        """Timestamp of the first frame indexed from this video. Frame
+        timestamps are linear in frame position, so (event.ts - anchor) is the
+        event's true offset (seconds) within the file — unlike wall-clock
+        time-of-day, which is meaningless as a seek position."""
+        with sqlite3.connect(str(self.db_path)) as conn:
+            row = conn.execute(
+                "SELECT MIN(timestamp) FROM frames WHERE video_path=?", (video_path,)
+            ).fetchone()
+        return datetime.fromisoformat(row[0]) if row and row[0] else None
+
     def extract_clip(self, event: Event) -> Optional[str]:
-        """Use FFmpeg to cut ±clip_window seconds around the event timestamp."""
+        """Cut ±clip_window seconds around the event using OpenCV (no ffmpeg)."""
+        import cv2
+
         src = Path(event.video_path)
         if not src.exists():
             logger.warning("Source video missing: %s", src)
             return None
 
-        ts = event.timestamp
-        start = max(0, ts.hour * 3600 + ts.minute * 60 + ts.second - self.clip_window)
+        # Offset of this event within its source file (see _video_anchor_ts).
+        anchor = self._video_anchor_ts(event.video_path)
+        rel = (event.timestamp - anchor).total_seconds() if anchor else 0.0
+        start = max(0.0, rel - self.clip_window)
         duration = self.clip_window * 2
-        out_name = f"clip_{event.id}_{ts.strftime('%Y%m%d_%H%M%S')}.mp4"
+
+        out_name = f"clip_{event.id}_{event.timestamp.strftime('%Y%m%d_%H%M%S')}.mp4"
         out_path = self.clips_dir / out_name
 
-        cmd = [
-            "ffmpeg", "-y",
-            "-ss", str(start),
-            "-i", str(src),
-            "-t", str(duration),
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-            "-an",
-            str(out_path),
-        ]
-        try:
-            result = subprocess.run(cmd, capture_output=True, timeout=120)
-            if result.returncode == 0:
-                event.clip_path = str(out_path)
-                return str(out_path)
-            logger.error("FFmpeg failed: %s", result.stderr.decode(errors="replace")[:400])
-        except Exception as exc:
-            logger.error("FFmpeg exception: %s", exc)
+        cap = cv2.VideoCapture(str(src))
+        if not cap.isOpened():
+            logger.error("OpenCV could not open source video: %s", src)
+            return None
+        fps   = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+        w     = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h     = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        start_frame = int(start * fps)
+        end_frame   = int((start + duration) * fps)
+        if total:
+            end_frame = min(end_frame, total)
+
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+        writer = cv2.VideoWriter(str(out_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+
+        written, f = 0, start_frame
+        while f < end_frame:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            writer.write(frame)
+            written += 1
+            f += 1
+        writer.release()
+        cap.release()
+
+        if written > 0 and out_path.exists() and out_path.stat().st_size > 0:
+            event.clip_path = str(out_path)
+            logger.info("Extracted clip (%d frames) → %s", written, out_path)
+            return str(out_path)
+        logger.error("Clip extraction produced no frames for event %s", event.id)
         return None
 
     # ── main search API ───────────────────────────────────────────────────────
