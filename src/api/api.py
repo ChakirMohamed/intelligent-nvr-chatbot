@@ -366,10 +366,23 @@ async def search(req: SearchRequest):
 
 @app.get("/clip/{event_id}", tags=["clips"])
 async def get_clip(event_id: int):
+    se = _require_search()
     clips_dir = Path(os.getenv("CLIPS_DIR", "./data/clips"))
     matches = list(clips_dir.glob(f"clip_{event_id}_*.mp4"))
+
     if not matches:
-        raise HTTPException(404, detail=f"No clip found for event {event_id}")
+        # No pre-extracted clip — build it on demand from the event's source video.
+        from src.search.retrospective_search import Event
+        with sqlite3.connect(str(se.db_path)) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("SELECT * FROM frames WHERE id=?", (event_id,)).fetchone()
+        if row is None:
+            raise HTTPException(404, detail=f"No event with id {event_id}")
+        path = await _in_thread(se.extract_clip, Event(dict(row)))
+        if not path:
+            raise HTTPException(404, detail=f"Could not extract clip for event {event_id}")
+        matches = [Path(path)]
+
     return FileResponse(str(matches[0]), media_type="video/mp4", filename=matches[0].name)
 
 
@@ -402,7 +415,11 @@ async def list_events(
             params,
         ).fetchall()
 
-    return {"count": len(rows), "events": [dict(r) for r in rows]}
+    # Normalize rows through Event so detected_objects is a list (not the raw
+    # comma-joined TEXT column) and the payload matches the search endpoint.
+    from src.search.retrospective_search import Event
+    events = [Event(dict(r)).to_dict() for r in rows]
+    return {"count": len(events), "events": events}
 
 
 @app.get("/summary", tags=["events"])
