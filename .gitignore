@@ -227,3 +227,11 @@ data/recordings/
 data/faiss_index/
 data/metadata.db
 data/clips
+
+# Auto-downloaded YOLO weights (re-downloads automatically)
+yolov8n.pt
+# Demo videos (too large for git)
+data/demo/
+# OpenVINO exported models (rebuildable)
+*.onnx
+yolov8n_visdrone_best_openvino_model/
