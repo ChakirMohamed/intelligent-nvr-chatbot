@@ -85,9 +85,15 @@ class YOLODetector:
                 return
 
         # plain PyTorch path
-        finetuned = Path(FINETUNED_MODEL_PATH)
-        if finetuned.exists():
-            self._model = YOLO(str(finetuned))
+        # Honor an explicit model_path only in the CPU path (e.g. stock COCO
+        # "yolov8n.pt" for ground footage); in the OpenVINO path model_path is
+        # the exported-model dir, so leave that behavior untouched.
+        explicit = model_path if not self.use_openvino else None
+        if explicit:
+            self._model = YOLO(str(explicit))
+            logger.info("YOLOv8n loaded from '%s' (CPU).", explicit)
+        elif Path(FINETUNED_MODEL_PATH).exists():
+            self._model = YOLO(FINETUNED_MODEL_PATH)
             logger.info("Fine-tuned YOLOv8n loaded from '%s' (CPU).", FINETUNED_MODEL_PATH)
         else:
             logger.warning(

@@ -16,13 +16,18 @@ cleared first so we start fresh with only the VIRAT footage.
 
 Usage
 -----
+    # replace the index with one video (default: VIRAT, fine-tuned model)
     python index_real_video.py [path/to/video.mp4]
+
+    # add a second camera without wiping the existing index, using COCO weights
+    python index_real_video.py data/demo/youtube_demo.mp4 \
+        --no-reset --camera youtube_cam --model coco
 
 Run from the project root (paths in .env are relative to it).
 """
+import argparse
 import logging
 import os
-import sys
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -41,8 +46,8 @@ for noisy in ("PIL", "timm", "open_clip", "ultralytics", "faiss"):
 
 # ── config (mirrors src/api/api.py defaults so the API serves this data) ────────
 DEFAULT_VIDEO   = "data/demo/VIRAT_S_010204_05_000856_000890.mp4"
-CAMERA_ID       = "virat_cam"
-ZONE            = "surveillance"
+DEFAULT_CAMERA  = "virat_cam"
+DEFAULT_ZONE    = "surveillance"
 
 DB_PATH         = os.getenv("DB_PATH", "./data/metadata.db")
 FAISS_PATH      = os.getenv("FAISS_INDEX_PATH", "./data/faiss_index/index.faiss")
@@ -67,14 +72,30 @@ def reset_index(db_path: Path, faiss_path: Path) -> None:
     print(f"  Cleared previous index: {removed or 'nothing to clear'}")
 
 
-def main() -> int:
-    banner("Full indexing of a REAL surveillance video")
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Full indexing of a real video into the NVR index.")
+    p.add_argument("video", nargs="?", default=DEFAULT_VIDEO, help="path to the video file")
+    p.add_argument("--camera", default=DEFAULT_CAMERA, help="camera_id for these frames (e.g. youtube_cam)")
+    p.add_argument("--zone", default=DEFAULT_ZONE, help="zone label stored with each frame")
+    p.add_argument("--no-reset", dest="reset", action="store_false",
+                   help="append to the existing index instead of wiping it (add as another camera)")
+    p.add_argument("--model", choices=["visdrone", "coco"], default="visdrone",
+                   help="'visdrone' = fine-tuned aerial .pt (default); 'coco' = stock yolov8n.pt (better on ground footage)")
+    p.add_argument("--conf", type=float, default=DETECTION_CONF, help="YOLO confidence threshold")
+    p.add_argument("--fps", type=float, default=0.0,
+                   help="index at most this many frames/sec (0 = every frame). "
+                        "Use e.g. 2 on long videos to keep CPU indexing fast.")
+    return p.parse_args()
 
-    video_path = Path(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_VIDEO)
+
+def main() -> int:
+    args = parse_args()
+    banner("Full indexing of a real video")
+
+    video_path = Path(args.video)
     if not video_path.exists():
         print(f"  [ERROR] Video not found: {video_path}")
-        print( "          Place the VIRAT clip there, or pass a path:")
-        print( "          python index_real_video.py path/to/video.mp4")
+        print( "          Pass a path:  python index_real_video.py path/to/video.mp4")
         return 1
 
     import cv2
@@ -85,16 +106,21 @@ def main() -> int:
     faiss_path = Path(FAISS_PATH)
     faiss_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Task 1.6 — start fresh with only the VIRAT data.
-    reset_index(db_path, faiss_path)
+    if args.reset:
+        reset_index(db_path, faiss_path)   # start fresh
+    else:
+        print("  Append mode (--no-reset): keeping the existing index, adding to it.")
 
+    # 'coco' → stock yolov8n.pt (good for ground footage); 'visdrone' → fine-tuned .pt.
+    model_path = "yolov8n.pt" if args.model == "coco" else None
     print(f"  Video      : {video_path}")
+    print(f"  Camera id  : {args.camera}   zone: {args.zone}   model: {args.model}")
     print(f"  DB_PATH    : {db_path}")
     print(f"  FAISS_PATH : {faiss_path}")
-    print( "  Loading YOLO (fine-tuned VisDrone, CPU) + CLIP ViT-B/32 ...")
+    print( "  Loading YOLO + CLIP ViT-B/32 ...")
 
-    # use_openvino=False → loads the fine-tuned .pt directly (yolo_detector.py).
-    detector = YOLODetector(use_openvino=False, confidence_threshold=DETECTION_CONF)
+    # use_openvino=False → loads a .pt directly (fine-tuned, or model_path for COCO).
+    detector = YOLODetector(use_openvino=False, model_path=model_path, confidence_threshold=args.conf)
     indexer  = FrameIndexer(
         faiss_index_path=str(faiss_path),
         db_path=str(db_path),
@@ -114,12 +140,16 @@ def main() -> int:
     # Anchor timestamps so the clip ends ~now → "recent" events for the chatbot.
     base_time = datetime.now().replace(microsecond=0) - timedelta(seconds=duration_s)
 
+    # Sample at most --fps frames/sec (0 = every frame) to bound CPU work.
+    stride = max(1, round(source_fps / args.fps)) if args.fps and args.fps > 0 else 1
+
     # MOG2 motion filter — same params as the live RTSP reader for consistency.
     bg = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=16, detectShadows=False)
 
+    sampling = "every frame" if stride == 1 else f"1 frame every {stride} (~{args.fps:g} fps)"
     print(
         f"  Source     : {total_frames} frames @ {source_fps:.1f} fps "
-        f"(~{duration_s:.0f}s).  MOTION_THRESHOLD={MOTION_THRESHOLD}\n"
+        f"(~{duration_s:.0f}s).  Sampling: {sampling}.  MOTION_THRESHOLD={MOTION_THRESHOLD}\n"
     )
 
     frame_idx = 0
@@ -132,6 +162,10 @@ def main() -> int:
         if not ret:
             break
         frame_idx += 1
+
+        # Frame sampling — only run YOLO+CLIP on every `stride`-th frame.
+        if stride > 1 and frame_idx % stride != 0:
+            continue
 
         # MOG2 motion gate — skip near-static frames.
         mask = bg.apply(frame)
@@ -148,11 +182,11 @@ def main() -> int:
 
         indexer.index_frame(
             frame=frame,
-            camera_id=CAMERA_ID,
+            camera_id=args.camera,
             video_path=str(video_path),
             timestamp=timestamp,
             detected_objects=objects,
-            zone=ZONE,
+            zone=args.zone,
         )
         indexed += 1
         det_str = ", ".join(objects) if objects else "none"
@@ -172,7 +206,7 @@ def main() -> int:
     print(f"  Object counts      : {dict(obj_counter) or 'none detected'}")
     print(f"  FAISS vectors      : {indexer.total_indexed}")
     print(f"  SQLite rows        : {indexer.get_frame_count()}")
-    print(f"  Camera id          : {CAMERA_ID}")
+    print(f"  Camera id          : {args.camera}")
     print(f"  Written to         : {db_path}  +  {faiss_path}")
     return 0
 
