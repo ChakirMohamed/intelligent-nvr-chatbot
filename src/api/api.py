@@ -342,6 +342,9 @@ async def chat(req: ChatRequest):
         _sessions[req.session_id] = AgentContext(session_id=req.session_id)
     ctx = _sessions[req.session_id]
 
+    # The agent's result dict is returned verbatim. For a clip_request intent it
+    # also carries clip_url / event_id / timestamp / detected_objects, which the
+    # frontend uses to render the "Voir le clip" button and video modal.
     result = await _in_thread(bot.chat, req.message, ctx)
     return result
 
