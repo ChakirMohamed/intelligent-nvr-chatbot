@@ -265,7 +265,8 @@ async def _startup() -> None:
         clips_dir=os.getenv("CLIPS_DIR", "./data/clips"),
         top_k=int(os.getenv("TOP_K_RESULTS", "10")),
         nprobe=int(os.getenv("FAISS_NPROBE", "10")),
-        clip_window=int(os.getenv("CLIP_EXTRACTION_WINDOW", "30")),
+        clip_duration=int(os.getenv("CLIP_DURATION_SECONDS", "15")),
+        dedup_seconds=float(os.getenv("EVENT_DEDUP_SECONDS", "15")),
         device="cpu",
     )
 

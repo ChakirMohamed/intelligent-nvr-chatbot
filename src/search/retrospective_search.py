@@ -54,7 +54,8 @@ class RetrospectiveSearch:
         clips_dir: str = "./data/clips",
         top_k: int = 10,
         nprobe: int = 10,
-        clip_window: int = 30,
+        clip_duration: int = 15,
+        dedup_seconds: float = 15.0,
         device: str = "cpu",
     ):
         self.faiss_index_path = Path(faiss_index_path)
@@ -62,13 +63,18 @@ class RetrospectiveSearch:
         self.clips_dir = Path(clips_dir)
         self.clips_dir.mkdir(parents=True, exist_ok=True)
         self.top_k = top_k
-        self.clip_window = clip_window
+        self.clip_duration = clip_duration     # total clip length (seconds)
+        self.dedup_seconds = dedup_seconds      # collapse same-camera hits within this gap
         self.device = device
 
         self._id_map: List[int] = []
         self._index: Optional[faiss.Index] = None
         self._clip_model = None
         self._tokenizer = None
+
+        # Resolved lazily on first clip extraction (see _ffmpeg_exe).
+        self._ffmpeg_checked = False
+        self._ffmpeg_path: Optional[str] = None
 
         self._load_clip()
         self._load_index(nprobe)
@@ -143,6 +149,24 @@ class RetrospectiveSearch:
             out.append(e)
         return out
 
+    def _dedup_events(self, events: List[Event]) -> List[Event]:
+        """Collapse near-duplicate detections so the user doesn't get several
+        result cards for the same moment (overlapping clips). Two events on the
+        same camera within dedup_seconds are treated as one; the higher-scoring
+        one is kept. Input must already be sorted by score (descending)."""
+        if self.dedup_seconds <= 0:
+            return events
+        kept: List[Event] = []
+        for e in events:
+            duplicate = any(
+                e.camera_id == k.camera_id
+                and abs((e.timestamp - k.timestamp).total_seconds()) < self.dedup_seconds
+                for k in kept
+            )
+            if not duplicate:
+                kept.append(e)
+        return kept
+
     # ── clip extraction ───────────────────────────────────────────────────────
 
     def _video_anchor_ts(self, video_path: str) -> Optional[datetime]:
@@ -156,23 +180,94 @@ class RetrospectiveSearch:
             ).fetchone()
         return datetime.fromisoformat(row[0]) if row and row[0] else None
 
-    def extract_clip(self, event: Event) -> Optional[str]:
-        """Cut ±clip_window seconds around the event using OpenCV (no ffmpeg)."""
-        import cv2
+    def _ffmpeg_exe(self) -> Optional[str]:
+        """Path to an ffmpeg binary capable of H.264, or None.
 
+        Prefers the pip-bundled imageio-ffmpeg binary (static build with
+        libx264, no system install needed); falls back to a system ffmpeg on
+        PATH. Result is cached so we only probe once."""
+        if self._ffmpeg_checked:
+            return self._ffmpeg_path
+        self._ffmpeg_checked = True
+        exe: Optional[str] = None
+        try:
+            import imageio_ffmpeg
+            exe = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            from shutil import which
+            exe = which("ffmpeg")
+        self._ffmpeg_path = exe
+        if exe:
+            logger.info("Clip extraction will use ffmpeg (H.264): %s", exe)
+        else:
+            logger.warning(
+                "ffmpeg not found — clips fall back to OpenCV mp4v, which most "
+                "browsers cannot play in <video>. Install imageio-ffmpeg to fix."
+            )
+        return exe
+
+    def extract_clip(self, event: Event) -> Optional[str]:
+        """Cut ±clip_window seconds around the event.
+
+        Prefers ffmpeg → H.264 so the clip is playable in a browser <video>;
+        falls back to OpenCV mp4v (MPEG-4 Part 2, download-only) if ffmpeg is
+        unavailable."""
         src = Path(event.video_path)
         if not src.exists():
             logger.warning("Source video missing: %s", src)
             return None
 
-        # Offset of this event within its source file (see _video_anchor_ts).
+        # Offset of this event within its source file (see _video_anchor_ts),
+        # then take a clip_duration-second window centered on the event.
         anchor = self._video_anchor_ts(event.video_path)
         rel = (event.timestamp - anchor).total_seconds() if anchor else 0.0
-        start = max(0.0, rel - self.clip_window)
-        duration = self.clip_window * 2
+        start = max(0.0, rel - self.clip_duration / 2)
+        duration = float(self.clip_duration)
 
         out_name = f"clip_{event.id}_{event.timestamp.strftime('%Y%m%d_%H%M%S')}.mp4"
         out_path = self.clips_dir / out_name
+
+        if self._extract_with_ffmpeg(src, start, duration, out_path):
+            event.clip_path = str(out_path)
+            return str(out_path)
+        return self._extract_with_opencv(event, src, start, duration, out_path)
+
+    def _extract_with_ffmpeg(
+        self, src: Path, start: float, duration: float, out_path: Path
+    ) -> bool:
+        """Cut the window and re-encode to browser-standard H.264 (yuv420p,
+        +faststart). Returns True on a non-empty output file."""
+        exe = self._ffmpeg_exe()
+        if not exe:
+            return False
+        import subprocess
+
+        cmd = [
+            exe, "-y", "-loglevel", "error",
+            "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{duration:.3f}",
+            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart", "-an", str(out_path),
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        except Exception as exc:
+            logger.error("ffmpeg clip extraction failed to run: %s", exc)
+            return False
+        if result.returncode == 0 and out_path.exists() and out_path.stat().st_size > 0:
+            logger.info("Extracted H.264 clip → %s", out_path)
+            return True
+        logger.warning(
+            "ffmpeg clip extraction failed (rc=%s): %s",
+            result.returncode, (result.stderr or "").strip()[:300],
+        )
+        return False
+
+    def _extract_with_opencv(
+        self, event: Event, src: Path, start: float, duration: float, out_path: Path
+    ) -> Optional[str]:
+        """Fallback: cut the window with OpenCV. Produces mp4v (MPEG-4 Part 2)
+        which downloads fine but is not decodable by browser <video>."""
+        import cv2
 
         cap = cv2.VideoCapture(str(src))
         if not cap.isOpened():
@@ -244,6 +339,9 @@ class RetrospectiveSearch:
         events = self._fetch_by_ids(row_ids, score_map)
         events = self._filter(events, camera_id, start_time, end_time, object_types)
         events.sort(key=lambda e: e.score, reverse=True)
+        # Over-fetch then dedup so near-identical frames don't crowd out distinct
+        # moments; only then trim to the requested k.
+        events = self._dedup_events(events)
         events = events[:k]
 
         if extract_clips:

@@ -14,6 +14,7 @@ Pillow>=10.3.0
 opencv-python>=4.9.0
 opencv-contrib-python>=4.9.0     # MOG2 background subtraction
 ffmpeg-python>=0.2.0
+imageio-ffmpeg>=0.5.1            # bundled static ffmpeg+libx264 for browser-playable H.264 clips
 
 # API layer
 fastapi>=0.111.0
