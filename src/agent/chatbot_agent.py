@@ -8,6 +8,7 @@ French templates enriched with live search / summary data.
 API surface is unchanged — existing callers (demo.py, api.py) work as-is.
 """
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -45,6 +46,9 @@ class ChatbotAgent:
     ):
         self.search_engine = search_engine
         self.max_history = max_history
+        # Public base URL the frontend can fetch clips from (see GET /clip/{id}).
+        # Override with CLIP_BASE_URL when the API is not on localhost:8000.
+        self._clip_base_url = os.getenv("CLIP_BASE_URL", "http://localhost:8000").rstrip("/")
 
         from src.agent.local_responder import LocalResponder
         self._responder = LocalResponder(ml_model_dir)
@@ -78,7 +82,7 @@ class ChatbotAgent:
         elif intent == "summary":
             result = self._handle_summary(ctx)
         elif intent == "clip_request":
-            result = self._handle_clip_request(ctx)
+            result = self._handle_clip_request(user_message, ctx)
         else:
             # greeting, unknown, camera_info, …
             response = self._responder.build_response(intent, user_message=user_message)
@@ -113,8 +117,60 @@ class ChatbotAgent:
         response = self._responder.build_response("summary", summary=summary)
         return {"response": response, "summary": summary}
 
-    def _handle_clip_request(self, ctx: AgentContext) -> dict:
-        response = self._responder.build_response(
-            "clip_request", search_results=ctx.last_events
+    def _handle_clip_request(self, user_message: str, ctx: AgentContext) -> dict:
+        """Auto-run a search from the message, then return the top hit as a
+        ready-to-play clip (URL + timestamp + detected objects)."""
+        query = self._clip_query_from_message(user_message)
+        try:
+            events = self.search_engine.search(query=query, top_k=1, extract_clips=False)
+            ctx.last_events = [e.to_dict() for e in events]
+        except Exception as exc:
+            logger.warning("Clip search failed: %s", exc)
+            ctx.last_events = []
+
+        if not ctx.last_events:
+            return {
+                "response": (
+                    "Je n'ai trouvé aucun clip correspondant à votre demande. "
+                    "Essayez de préciser ce que vous cherchez (par exemple « la moto » "
+                    "ou « la personne »)."
+                ),
+                "events": [],
+            }
+
+        top       = ctx.last_events[0]
+        event_id  = top["id"]
+        timestamp = top["timestamp"]
+        objects   = top.get("detected_objects") or []
+        objs_str  = ", ".join(objects) if objects else "objet détecté"
+        clip_url  = f"{self._clip_base_url}/clip/{event_id}"
+
+        response = (
+            f"J'ai trouvé le clip. Voici la séquence enregistrée à {timestamp} "
+            f"(objets détectés : {objs_str})."
         )
-        return {"response": response, "events": ctx.last_events}
+        return {
+            "response":         response,
+            "clip_url":         clip_url,
+            "event_id":         event_id,
+            "timestamp":        timestamp,
+            "detected_objects": objects,
+            "events":           ctx.last_events,
+        }
+
+    @staticmethod
+    def _clip_query_from_message(message: str) -> str:
+        """Map French keywords in the message to an English CLIP query, which
+        the image-text model scores far better than raw French."""
+        m = message.lower()
+        has_moto   = "moto" in m
+        has_person = "personne" in m
+        if has_moto and has_person:
+            return "person riding motorcycle"
+        if has_moto:
+            return "motorcycle"
+        if has_person:
+            return "person"
+        # No recognised keyword — fall back to the raw message so other
+        # subjects (voiture, camion, …) still return their best match.
+        return message
