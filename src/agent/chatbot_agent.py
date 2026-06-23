@@ -11,7 +11,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,6 @@ class ChatbotAgent:
     def __init__(
         self,
         search_engine,
-        llm_provider: str = "local",       # kept for API compat — ignored
-        llm_model: Optional[str] = None,   # kept for API compat — ignored
-        api_key: Optional[str] = None,     # kept for API compat — ignored
         max_history: int = 5,
         ml_model_dir: str = "src/ml/models",
         ml_confidence_threshold: float = 0.70,

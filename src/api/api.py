@@ -270,13 +270,7 @@ async def _startup() -> None:
         device="cpu",
     )
 
-    api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
-    _chatbot = ChatbotAgent(
-        search_engine=_search,
-        llm_provider=os.getenv("LLM_PROVIDER", "anthropic"),
-        llm_model=os.getenv("LLM_MODEL"),
-        api_key=api_key,
-    )
+    _chatbot = ChatbotAgent(search_engine=_search)
 
     # Start live RTSP readers (recording + live view + indexing) from RTSP_URLS.
     _start_ingestion(db_path)
