@@ -129,6 +129,24 @@ API REST — FastAPI (/chat /search /clip /events /summary /health)
 
 ---
 
+## 🎬 Scénario de démonstration
+
+Conversation complète testée et validée sur notre système :
+
+| Message utilisateur | Intent détecté | Confiance | Action déclenchée |
+|---|---|---|---|
+| `bonjour` | greeting | 100 % | Réponse de bienvenue |
+| `montre-moi les événements détectés` | search | 100 % | Recherche CLIP + FAISS |
+| `montre-moi la video de la personne sur la moto` | search | 98 % | Recherche CLIP + FAISS → résultats horodatés |
+| `je veux voir le clip de la moto` | clip_request | 100 % | Extraction automatique .mp4 |
+| `fais-moi un résumé de l'activité` | summary | 100 % | Bilan structuré SQLite |
+
+> **Note :** les requêtes utilisent CLIP pour encoder la description
+> en vecteur de 512 dimensions, puis FAISS compare parmi les frames
+> indexées — sans mot-clé prédéfini, sans date, sans numéro de caméra.
+
+---
+
 ## 🖥️ Interface (Frontend React)
 
 > Dépôt frontend : https://github.com/ChakirMohamed/front-end-nvr-chatbot
