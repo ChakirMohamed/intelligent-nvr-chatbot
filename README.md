@@ -151,6 +151,32 @@ Conversation complète testée et validée sur notre système :
 
 > Dépôt frontend : https://github.com/ChakirMohamed/front-end-nvr-chatbot
 
+<p align="center">
+  <img src="docs/screenshot_dashboard.png" alt="Tableau de bord" width="80%">
+  <br><em>Tableau de bord — métriques ML en temps réel</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshot_assistant.png" alt="Assistant IA" width="80%">
+  <br><em>Assistant IA — visualisation des scores du classifieur en direct</em>
+</p>
+
+---
+
+## 📡 Compatibilité caméras réelles (RTSP)
+
+Testé avec une caméra **ZKTeco** bullet camera connectée
+via switch réseau en protocole RTSP standard.
+
+<p align="center">
+  <img src="docs/screenshot_live.png" alt="Caméra ZKTeco connectée en RTSP" width="80%">
+  <br><em>Flux live — caméra ZKTeco connectée via RTSP sur le frontend NVR Intelligent</em>
+</p>
+
+> Contrairement à Hikvision AcuSeek qui fonctionne uniquement
+> avec les caméras Hikvision, notre système se connecte à
+> **n'importe quelle caméra IP du marché** via le protocole
+> RTSP standard — sans aucune modification du code.
 
 ---
 
