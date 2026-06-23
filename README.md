@@ -111,9 +111,6 @@ Entraînement : 15 epochs, GPU Tesla T4 (Google Colab), **37 minutes**.
 
 ## 🏗️ Architecture
 
-<!-- Optionnel : remplace par ton schéma généré (docs/architecture.png) -->
-<!-- <p align="center"><img src="docs/architecture.png" width="90%"></p> -->
-
 ```
 Caméras IP (RTSP)
     ↓
@@ -135,18 +132,6 @@ API REST — FastAPI (/chat /search /clip /events /summary /health)
 ## 🖥️ Interface (Frontend React)
 
 > Dépôt frontend : https://github.com/ChakirMohamed/front-end-nvr-chatbot
-
-<!-- ============ CAPTURES FRONTEND ============ -->
-<!-- Ajoute tes captures dans docs/ puis garde les lignes ci-dessous -->
-<p align="center">
-  <img src="docs/screenshot_dashboard.png" alt="Tableau de bord" width="80%">
-  <br><em>Tableau de bord — métriques ML en temps réel</em>
-</p>
-
-<p align="center">
-  <img src="docs/screenshot_assistant.png" alt="Assistant IA" width="80%">
-  <br><em>Assistant IA — visualisation des scores du classifieur en direct</em>
-</p>
 
 
 ---
